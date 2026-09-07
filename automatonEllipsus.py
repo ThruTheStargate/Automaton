@@ -1,11 +1,8 @@
-#```python
+#Ellipsus Automaton - Created by Kaia Aydelotte, 09.02.26, using ChatGPT and modified personally
+#Python file designed to automate copy/paste odt file transfer into Ellipsus
+#Last updated 09.02.26
+
 """
-Ellipsus Page Transfer
-======================
-
-Automates transferring physical pages from a LibreOffice Writer document
-into an Ellipsus document.
-
 IMPORT:
     1. Opens the selected LibreOffice document.
     2. Starts at the specified Writer page.
@@ -32,20 +29,25 @@ IMPORTANT:
     Do not touch the keyboard/mouse while automation is running.
 """
 
+#IMPORTS
+import platform                             #helps program detect which operating system is in use
 import time
 import threading
 import webbrowser
 import tkinter as tk
 from tkinter import filedialog, messagebox
-
 import pyautogui
 import pyperclip
 import customtkinter as ctk
 
+from OSTask import OSTask                  #import OSTask class to handle the OS the computer is currently on
 
+
+#FUNCTIONS
 # ============================================================
 # CONFIGURATION
 # ============================================================
+thisOS = OSTask()                          #initialize instance of OSTask to handle OS differences
 
 DEFAULT_DELAY = 0.75
 DEFAULT_PAGE_DELAY = 1.5
@@ -54,8 +56,7 @@ COUNTDOWN_SECONDS = 5
 # F12 is the emergency stop key.
 STOP_KEY = "f12"
 
-# Ellipsus Markdown divider.
-# Ellipsus recognizes this Markdown pattern as a Divider.
+# Ellipsus Markdown divider. Ellipsus recognizes this Markdown pattern as a Divider.
 ELLIPSUS_DIVIDER = "----***___"
 
 
@@ -81,7 +82,7 @@ def check_stop():
     return stop_event.is_set()
 
 
-def safe_sleep(seconds):
+def safeSleep(seconds):
     """
     Sleep while checking for an emergency stop.
 
@@ -111,7 +112,7 @@ def countdown(update_status):
             f"DO NOT TOUCH THE MOUSE OR KEYBOARD."
         )
 
-        if not safe_sleep(1):
+        if not safeSleep(1):
             return False
 
     update_status("Automation started.")
@@ -122,25 +123,13 @@ def countdown(update_status):
 # LIBREOFFICE
 # ============================================================
 
-def open_libreoffice_file(filename, update_status):
+def openLibreofficeFile(filename, updateStatus):
     """
-    Open the selected LibreOffice document.
-
-    Uses the operating system's default application for the file.
+    Opens the selected LibreOffice document.
     """
-
-    import os
-
-    update_status("Opening LibreOffice document...")
-
-    try:
-        os.startfile(filename)
-    except AttributeError:
-        # Fallback for non-Windows systems.
-        import subprocess
-        subprocess.Popen(["libreoffice", filename])
-
-    return safe_sleep(5)
+    updateStatus("Opening LibreOffice document...")
+    OSTask.openFile(filename)
+    return safeSleep(5)
 
 
 def go_to_page(page_number, update_status):
@@ -159,7 +148,7 @@ def go_to_page(page_number, update_status):
     # Put cursor at beginning of document.
     pyautogui.hotkey("ctrl", "home")
 
-    if not safe_sleep(DEFAULT_DELAY):
+    if not safeSleep(DEFAULT_DELAY):
         return False
 
     # Move to the beginning of the requested page.
@@ -173,13 +162,13 @@ def go_to_page(page_number, update_status):
 
         pyautogui.hotkey("ctrl", "pagedown")
 
-        if not safe_sleep(0.08):
+        if not safeSleep(0.08):
             return False
 
     # Make sure we're positioned at the beginning of the current page.
     pyautogui.hotkey("ctrl", "pageup")
 
-    return safe_sleep(DEFAULT_DELAY)
+    return safeSleep(DEFAULT_DELAY)
 
 
 def select_current_writer_page(update_status):
@@ -200,12 +189,12 @@ def select_current_writer_page(update_status):
 
     pyautogui.hotkey("ctrl", "pageup")
 
-    if not safe_sleep(0.2):
+    if not safeSleep(0.2):
         return False
 
     pyautogui.hotkey("ctrl", "shift", "pagedown")
 
-    return safe_sleep(DEFAULT_DELAY)
+    return safeSleep(DEFAULT_DELAY)
 
 
 def copy_current_page(update_status):
@@ -215,7 +204,7 @@ def copy_current_page(update_status):
 
     pyautogui.hotkey("ctrl", "c")
 
-    return safe_sleep(DEFAULT_DELAY)
+    return safeSleep(DEFAULT_DELAY)
 
 
 # ============================================================
@@ -233,7 +222,7 @@ def open_ellipsus(url, update_status):
 
     webbrowser.open(url)
 
-    return safe_sleep(5)
+    return safeSleep(5)
 
 
 def paste_into_ellipsus(update_status):
@@ -243,7 +232,7 @@ def paste_into_ellipsus(update_status):
 
     pyautogui.hotkey("ctrl", "v")
 
-    return safe_sleep(DEFAULT_PAGE_DELAY)
+    return safeSleep(DEFAULT_PAGE_DELAY)
 
 
 def insert_ellipsus_divider(update_status):
@@ -262,12 +251,12 @@ def insert_ellipsus_divider(update_status):
 
     pyautogui.write(ELLIPSUS_DIVIDER, interval=0.01)
 
-    if not safe_sleep(0.2):
+    if not safeSleep(0.2):
         return False
 
     pyautogui.press("enter")
 
-    return safe_sleep(DEFAULT_DELAY)
+    return safeSleep(DEFAULT_DELAY)
 
 
 # ============================================================
@@ -296,7 +285,7 @@ def import_pages(
         # Open LibreOffice
         # ----------------------------------------------------
 
-        if not open_libreoffice_file(
+        if not openLibreofficeFile(
             libreoffice_file,
             update_status
         ):
@@ -358,7 +347,7 @@ def import_pages(
             # Switch to Ellipsus.
             pyautogui.hotkey("alt", "tab")
 
-            if not safe_sleep(DEFAULT_PAGE_DELAY):
+            if not safeSleep(DEFAULT_PAGE_DELAY):
                 break
 
             # Paste page.
@@ -383,13 +372,13 @@ def import_pages(
             # Switch back to LibreOffice.
             pyautogui.hotkey("alt", "tab")
 
-            if not safe_sleep(DEFAULT_PAGE_DELAY):
+            if not safeSleep(DEFAULT_PAGE_DELAY):
                 break
 
             # Move to next Writer page.
             pyautogui.hotkey("ctrl", "pagedown")
 
-            if not safe_sleep(DEFAULT_DELAY):
+            if not safeSleep(DEFAULT_DELAY):
                 break
 
             current_page += 1
@@ -448,7 +437,7 @@ def remove_previous_page(update_status):
     # Move to beginning of current page/document region.
     pyautogui.hotkey("ctrl", "home")
 
-    if not safe_sleep(DEFAULT_DELAY):
+    if not safeSleep(DEFAULT_DELAY):
         return False
 
     return True
