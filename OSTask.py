@@ -2,13 +2,21 @@
 #Class designed to handle differences in operating systems
 #Last updated 09.03.26
 
-import os           #allows program to interact with Windows operating system
-import subprocess   #allows program to interact with Linux operating system
+import os           #General operating-system functions
+import platform     #Detects current system OS
+import subprocess   #Launches/interacts with other programs
 
 class OSTask:
+    def _init_(self):
+        self.os = platform.system()
 
-    def openFile(self, filename):
-        ...
+    def openFile(self, filename):    
+        if self.os == "Windows":
+            os.startfile(filename)
+        elif self.os == "Linux":
+            subprocess.Popen(["libreoffice", filename])
+        else:
+            raise OSError("Unsupported operating system")
 
     def switchWindow(self):
         ...
