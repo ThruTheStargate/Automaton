@@ -64,178 +64,136 @@ ELLIPSUS_DIVIDER = "----***___"
 # GLOBAL STATE
 # ============================================================
 
-stop_event = threading.Event()
+stopEvent = threading.Event()         #initialize emergency stop thread that listens for the F12 key
 automation_running = False
 
 
 # ============================================================
-# SAFETY
+# EMERGENCY STOP AND SLEEP FUNCTIONS
 # ============================================================
 
-def emergency_stop():
+def emergencyStop():                    #Multi-OS
     """Immediately request that the current automation stop."""
-    stop_event.set()
+    stopEvent.set()                     #trigger thread - F12 was pressed
 
 
-def check_stop():
-    """Return True if the user has requested an emergency stop."""
-    return stop_event.is_set()
+def checkStop():                        #Multi-OS
+    """return True if the user has requested an emergency stop."""
+    return stopEvent.is_set()           #check the stopEvent thread, return True or False
 
 
-def safeSleep(seconds):
-    """
-    Sleep while checking for an emergency stop.
+def safeSleep(seconds):                  #Multi-OS
+    """sleep while checking for an emergency stop (F12 stays responsive)"""
 
-    This makes F12 responsive even during longer waits.
-    """
-    end_time = time.time() + seconds
+    endTime = time.time() + seconds      #set endTime to current time + desired seconds
+    while time.time() < endTime:         #while the current time is less than the endTime....
+        if checkStop():                  #if the user pressed the F12 key...
+            return False                 #...STOP THE LOOP (now the program can run emergency stop protocols)
+        time.sleep(0.05)                 #...but if they haven't pressed the key, run for .05 more seconds
 
-    while time.time() < end_time:
-        if check_stop():
-            return False
-
-        time.sleep(0.05)
-
-    return True
+    return True                          #Otherwise, return True
 
 
-def countdown(update_status):
+def countdown(updateStatus):                             #Multi-OS
     """Give the user a countdown before automation begins."""
 
-    for remaining in range(COUNTDOWN_SECONDS, 0, -1):
-
-        if check_stop():
-            return False
-
-        update_status(
+    for remaining in range(COUNTDOWN_SECONDS, 0, -1):    #if there is still time left in the countdown...
+        if checkStop():                                  #...first, check if the user has pressed F12
+            return False                                 #...if so, STOP the function
+        updateStatus(                                    #otherwise, display time left and remind user no touchie
             f"Starting in {remaining}... "
             f"DO NOT TOUCH THE MOUSE OR KEYBOARD."
         )
+        if not safeSleep(1):                             #...Pause for a second....
+            return False                                 #(But still STOP if user keys F12)
 
-        if not safeSleep(1):
-            return False
+    updateStatus("Automation started.")                  #Once loop has finished, display that Automation has started...
+    return True                                          #...and return true. Showtime, suckers!
 
-    update_status("Automation started.")
-    return True
 
 
 # ============================================================
 # LIBREOFFICE
 # ============================================================
 
-def openLibreofficeFile(filename, updateStatus):
+def openLibreofficeFile(filename, updateStatus):     #Multi-OS
+    """Opens the selected LibreOffice document."""
+
+    updateStatus("Opening LibreOffice document...")   #tell user the file is opening by displaying message on GUI...
+    thisOS.openFile(filename)                         #...then call OSTask function to open the right LibreOffice file
+    return safeSleep(5)                               #...then pause for five seconds
+
+
+def goToPage(pageNumber, updateStatus):                         #Multi-OS
     """
-    Opens the selected LibreOffice document.
-    """
-    updateStatus("Opening LibreOffice document...")
-    OSTask.openFile(filename)
-    return safeSleep(5)
-
-
-def go_to_page(page_number, update_status):
-    """
-    Navigate to a physical Writer page.
-
-    Writer's page-navigation shortcuts allow us to move page-by-page.
-
-    We start at the beginning of the document and advance until we reach
-    the requested page. This is slower for very large starting page numbers,
-    but it is deliberately conservative for the first version.
+    Starts at the beginning of document and navigates to desired page 
+    using page-navigation shortcuts
     """
 
-    update_status(f"Navigating to Writer page {page_number}...")
+    updateStatus(f"Navigating to page {pageNumber}...")          #Display that we are navigating to desired page...
+    pyautogui.hotkey("ctrl", "home")                             #Put cursor at beginning of document.
+    if not safeSleep(DEFAULT_DELAY):                             #Pause to load. If safeSleep returns False (i.e. F12 was pressed)
+        return False                                             #...HALT. Return False and end function.
 
-    # Put cursor at beginning of document.
-    pyautogui.hotkey("ctrl", "home")
+    for _ in range(pageNumber - 1):                              #otherise, loop the number of pages we need to advance (one less than total)
+        if checkStop():                                          #For each loop, check if F12 has been pressed...
+            return False                                         #...if so, stop loop!
 
-    if not safeSleep(DEFAULT_DELAY):
-        return False
+        pyautogui.hotkey("ctrl", "pagedown")                     #otherwise, advance one page (program uses ctrl/pagedown shortcut)
+        if not safeSleep(0.08):                                  #...pause .08 seconds for LibreOffice to catch up...
+            return False                                         #...but if user presses F12 during the pause, stop anyways
 
-    # Move to the beginning of the requested page.
-    #
-    # Page 1 requires no movement.
-    # Each Ctrl+PageDown advances toward the next physical page.
-    for _ in range(page_number - 1):
+    pyautogui.hotkey("ctrl", "pageup")                           #automate ctrl/pageup to go to top of the right page...
 
-        if check_stop():
-            return False
-
-        pyautogui.hotkey("ctrl", "pagedown")
-
-        if not safeSleep(0.08):
-            return False
-
-    # Make sure we're positioned at the beginning of the current page.
-    pyautogui.hotkey("ctrl", "pageup")
-
-    return safeSleep(DEFAULT_DELAY)
+    return safeSleep(DEFAULT_DELAY)                              #return a delay to load. Finished!
 
 
-def select_current_writer_page(update_status):
-    """
-    Select the current physical Writer page.
+def selectCurrentPage(updateStatus):                #Multi-OS
+    """Select current page text"""
 
-    Writer's Ctrl+PageDown moves to the end of the current page.
-    Holding Shift while performing that movement extends the selection.
+    updateStatus("Selecting current page...")       #Display message that program is selecting page...
+    pyautogui.hotkey("ctrl", "pageup")              #...Go to top of page...
+    if not safeSleep(0.2):                          #...pause to load. If F12 is pressed...
+        return False                                #STOP the function
+    pyautogui.hotkey("ctrl", "shift", "pagedown")   #...Use ctrl/pagedown to navigate to the bottom while holding shift to select text
 
-    This means:
-
-        cursor at beginning of page
-        Shift + Ctrl + PageDown
-        = select through the end of the current page
-    """
-
-    update_status("Selecting current Writer page...")
-
-    pyautogui.hotkey("ctrl", "pageup")
-
-    if not safeSleep(0.2):
-        return False
-
-    pyautogui.hotkey("ctrl", "shift", "pagedown")
-
-    return safeSleep(DEFAULT_DELAY)
+    return safeSleep(DEFAULT_DELAY)                 #...and return delay. Finished!
 
 
-def copy_current_page(update_status):
-    """Copy the currently selected Writer page."""
+def copyCurrentPage(updateStatus):                  #Multi-OS
+    """Copy currently selected page."""
 
-    update_status("Copying Writer page...")
+    updateStatus("Copying selected page...")        #Display message that program is copying selected page...
+    pyautogui.hotkey("ctrl", "c")                   #...use ctrl/c to copy text...
 
-    pyautogui.hotkey("ctrl", "c")
-
-    return safeSleep(DEFAULT_DELAY)
+    return safeSleep(DEFAULT_DELAY)                 #...then return delay. Finished!
 
 
 # ============================================================
 # ELLIPSUS
 # ============================================================
 
-def open_ellipsus(url, update_status):
+def openEllipsus(url, updateStatus):                    #Multi-OS
     """
-    Open the specified Ellipsus document in the default browser.
-
-    The user must already be signed into Ellipsus in that browser.
+    Opens the specified Ellipsus document in the default browser.
+    (The user must already be signed into Ellipsus in that browser.)
     """
+    updateStatus("Opening Ellipsus document...")        #display message that program is opening Ellipsus doc
+    webbrowser.open(url)                                #open Ellipsus doc from the URL
 
-    update_status("Opening Ellipsus document...")
-
-    webbrowser.open(url)
-
-    return safeSleep(5)
+    return safeSleep(5)                                 #return delay - Finished!
 
 
-def paste_into_ellipsus(update_status):
-    """Paste the copied Writer page into Ellipsus."""
+def pasteIntoEllipsus(updateStatus):               #Multi-OS
+    """Pastes the copied page into Ellipsus."""
 
-    update_status("Pasting page into Ellipsus...")
+    updateStatus("Pasting page into Ellipsus...")  #display message that program is pasting copied page
+    pyautogui.hotkey("ctrl", "v")                  #automate ctrl/v and paste page
 
-    pyautogui.hotkey("ctrl", "v")
-
-    return safeSleep(DEFAULT_PAGE_DELAY)
+    return safeSleep(DEFAULT_PAGE_DELAY)           #return delay - Finished!
 
 
-def insert_ellipsus_divider(update_status):
+def insertEllipsusDivider(updateStatus):
     """
     Insert an Ellipsus divider.
 
@@ -247,16 +205,14 @@ def insert_ellipsus_divider(update_status):
     to convert it into a Divider when Markdown shortcuts are enabled.
     """
 
-    update_status("Inserting Ellipsus divider...")
+    updateStatus("Inserting Ellipsus divider...")     #display message that program is inserting devider
+    pyautogui.write(ELLIPSUS_DIVIDER, interval=0.01)  #have pyautogui type out Markdown divider shortcut
+    if not safeSleep(0.2):                            #pause to load - if user presses F12...
+        return False                                  #...STOP function here
 
-    pyautogui.write(ELLIPSUS_DIVIDER, interval=0.01)
+    pyautogui.press("enter")                          #automate key ENTER
 
-    if not safeSleep(0.2):
-        return False
-
-    pyautogui.press("enter")
-
-    return safeSleep(DEFAULT_DELAY)
+    return safeSleep(DEFAULT_DELAY)                   #return delay - finished!
 
 
 # ============================================================
@@ -277,7 +233,7 @@ def import_pages(
     global automation_running
 
     automation_running = True
-    stop_event.clear()
+    stopEvent.clear()
 
     try:
 
@@ -291,7 +247,7 @@ def import_pages(
         ):
             return
 
-        if check_stop():
+        if checkStop():
             return
 
         # ----------------------------------------------------
@@ -304,7 +260,7 @@ def import_pages(
         ):
             return
 
-        if check_stop():
+        if checkStop():
             return
 
         # ----------------------------------------------------
@@ -318,7 +274,7 @@ def import_pages(
         # Navigate to starting page
         # ----------------------------------------------------
 
-        if not go_to_page(
+        if not goToPage(
             starting_page,
             update_status
         ):
@@ -330,18 +286,18 @@ def import_pages(
         # Main loop
         # ----------------------------------------------------
 
-        while not check_stop():
+        while not checkStop():
 
             update_status(
                 f"Processing Writer page {current_page}..."
             )
 
             # Select page.
-            if not select_current_writer_page(update_status):
+            if not selectCurrentPage(update_status):
                 break
 
             # Copy page.
-            if not copy_current_page(update_status):
+            if not copyCurrentPage(update_status):
                 break
 
             # Switch to Ellipsus.
@@ -383,7 +339,7 @@ def import_pages(
 
             current_page += 1
 
-        if check_stop():
+        if checkStop():
             update_status(
                 f"STOPPED by emergency command. "
                 f"Last attempted page: {current_page}"
@@ -458,7 +414,7 @@ def remove_pages(
     global automation_running
 
     automation_running = True
-    stop_event.clear()
+    stopEvent.clear()
 
     try:
 
@@ -467,7 +423,7 @@ def remove_pages(
 
         for count in range(1, number_of_pages + 1):
 
-            if check_stop():
+            if checkStop():
                 break
 
             update_status(
