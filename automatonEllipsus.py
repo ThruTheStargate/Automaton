@@ -29,10 +29,10 @@ IMPORTANT:
     Do not touch the keyboard/mouse while automation is running.
 """
 
-#IMPORTS
+#IMPORTS AND VARIABLES
 import platform                             #helps program detect which operating system is in use
-import time
-import threading
+import time                                 #allows program to utilize and measure time
+import threading                            #allows program to run threads
 import webbrowser
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -42,11 +42,6 @@ import customtkinter as ctk
 
 from OSTask import OSTask                  #import OSTask class to handle the OS the computer is currently on
 
-
-#FUNCTIONS
-# ============================================================
-# CONFIGURATION
-# ============================================================
 thisOS = OSTask()                          #initialize instance of OSTask to handle OS differences
 
 DEFAULT_DELAY = 0.75
@@ -65,7 +60,7 @@ ELLIPSUS_DIVIDER = "----***___"
 # ============================================================
 
 stopEvent = threading.Event()         #initialize emergency stop thread that listens for the F12 key
-automation_running = False
+automationRunning = False
 
 
 # ============================================================
@@ -193,9 +188,9 @@ def pasteIntoEllipsus(updateStatus):               #Multi-OS
     return safeSleep(DEFAULT_PAGE_DELAY)           #return delay - Finished!
 
 
-def insertEllipsusDivider(updateStatus):
+def insertEllipsusDivider(updateStatus):              #Multi-OS
     """
-    Insert an Ellipsus divider.
+    Inserts an Ellipsus divider.
 
     Ellipsus supports the Markdown divider shortcut:
 
@@ -219,151 +214,90 @@ def insertEllipsusDivider(updateStatus):
 # IMPORT MODE
 # ============================================================
 
-def import_pages(
-    libreoffice_file,
-    ellipsus_url,
-    starting_page,
-    test_mode,
-    update_status,
+def exportPages(
+    file,
+    url,
+    startingPage,
+    testMode,
+    updateStatus,
 ):
     """
-    Main import routine.
+    Pulls up LibreOffice and copies/pastes pages into Ellipsus
+    until done
     """
 
-    global automation_running
+    global automationRunning                              #access the automationRunning var from outside function...
+    automationRunning = True                              #...and set that variable to True. Automation is now running
+    stopEvent.clear()                                     #Then reset the Emergency Stop Sensor
 
-    automation_running = True
-    stopEvent.clear()
+    try:                                                  #try the below...
+        if not openLibreofficeFile(file, updateStatus):        #open the LibreOffice File...
+            return                                             #...(careful to check for F12)
+        if checkStop():                                        #...check if user pressed F12 again...
+            return                                             #...(and end function if they did)
+        if not openEllipsus(url, updateStatus):                #...then open to the Ellipsus document...
+            return                                             #...(still checking for F12)
+        if checkStop():                                        #...and check if they pressed F12 again
+            return                                             #...(still end function if they did)
+        if not countdown(updateStatus):                        #Now start the countdown...
+            return                                             #...(And check for F12 again)
+        if not goToPage(startingPage, updateStatus):           #...And go to the page the user selected!
+            return                                             #...(Still check for F12)
+        
+        currentPage = startingPage                             #Initialize the currentPage var and set it to the starting page
 
-    try:
+        #MAIN LOOP
+        while not checkStop():                                 #While the F12 button hasn't been keyed...
 
-        # ----------------------------------------------------
-        # Open LibreOffice
-        # ----------------------------------------------------
+            updateStatus(f"Processing page {currentPage}...")  #Update the user that we are starting on page currentPage
+            if not selectCurrentPage(updateStatus):            #Select the page text...
+                break                                          #...(Check for F12)
+            if not copyCurrentPage(updateStatus):              #...copy the text...
+                break                                          #...(Check for F12)
 
-        if not openLibreofficeFile(
-            libreoffice_file,
-            update_status
-        ):
-            return
+            pyautogui.hotkey("alt", "tab")                     #Use alt/tab to switch to Ellipsus.
 
-        if checkStop():
-            return
+            if not safeSleep(DEFAULT_PAGE_DELAY):              #Pause to load...
+                break                                          #...(Check for F12)
+            if not pasteIntoEllipsus(updateStatus):            #...and paste the text
+                break                                          #...(Check for F12)
+            if not insertEllipsusDivider(updateStatus):        #...insert divider...
+                break
 
-        # ----------------------------------------------------
-        # Open Ellipsus
-        # ----------------------------------------------------
+            updateStatus(f"Page {currentPage} transferred successfully.") #Alert user that the page was transferred
 
-        if not open_ellipsus(
-            ellipsus_url,
-            update_status
-        ):
-            return
+            if testMode:                                       #Test mode intentionally stops after ONE page.
+                updateStatus(f"TEST COMPLETE — page {currentPage} transferred.") #Alert user that Test concluded
+                break                                          #...(Check F12)
 
-        if checkStop():
-            return
+            pyautogui.hotkey("alt", "tab")                     #Switch back to LibreOffice.
+            if not safeSleep(DEFAULT_PAGE_DELAY):              #Pause to load...
+                break                                          #...(Check F12)
+            pyautogui.hotkey("ctrl", "pagedown")               #...and move to next page.
+            if not safeSleep(DEFAULT_DELAY):                   #...Pause to load...
+                break                                          #...(Check F12)
 
-        # ----------------------------------------------------
-        # Countdown
-        # ----------------------------------------------------
+            currentPage += 1                                   #...and add one to currentPage. We are moving to next page
 
-        if not countdown(update_status):
-            return
-
-        # ----------------------------------------------------
-        # Navigate to starting page
-        # ----------------------------------------------------
-
-        if not goToPage(
-            starting_page,
-            update_status
-        ):
-            return
-
-        current_page = starting_page
-
-        # ----------------------------------------------------
-        # Main loop
-        # ----------------------------------------------------
-
-        while not checkStop():
-
-            update_status(
-                f"Processing Writer page {current_page}..."
+        if checkStop():                                        #once loop is complete...
+            updateStatus(                                      #...if the loop was prematurely killed by F12...
+                f"STOPPED by emergency command. "              #...alert the user that program was stopped prematurely...
+                f"Last attempted page: {currentPage}"          #...and what page it stopped on
             )
+        else:                                                  #...if instead the loop completed successfully...
+            updateStatus("Import finished.")                   #...tell the user that it worked
 
-            # Select page.
-            if not selectCurrentPage(update_status):
-                break
 
-            # Copy page.
-            if not copyCurrentPage(update_status):
-                break
-
-            # Switch to Ellipsus.
-            pyautogui.hotkey("alt", "tab")
-
-            if not safeSleep(DEFAULT_PAGE_DELAY):
-                break
-
-            # Paste page.
-            if not paste_into_ellipsus(update_status):
-                break
-
-            # Insert divider.
-            if not insert_ellipsus_divider(update_status):
-                break
-
-            update_status(
-                f"Page {current_page} transferred successfully."
-            )
-
-            # Test mode intentionally stops after ONE page.
-            if test_mode:
-                update_status(
-                    f"TEST COMPLETE — page {current_page} transferred."
-                )
-                break
-
-            # Switch back to LibreOffice.
-            pyautogui.hotkey("alt", "tab")
-
-            if not safeSleep(DEFAULT_PAGE_DELAY):
-                break
-
-            # Move to next Writer page.
-            pyautogui.hotkey("ctrl", "pagedown")
-
-            if not safeSleep(DEFAULT_DELAY):
-                break
-
-            current_page += 1
-
-        if checkStop():
-            update_status(
-                f"STOPPED by emergency command. "
-                f"Last attempted page: {current_page}"
-            )
-        else:
-            update_status(
-                "Import finished."
-            )
-
-    except Exception as error:
-
-        update_status(
-            f"ERROR: {error}"
-        )
-
-        messagebox.showerror(
+    except Exception as error:                            #Unless some sort of issue occured...
+        updateStatus(f"ERROR: {error}")                        #...then tell the user what error 
+        messagebox.showerror(                                  #...and display a pop-up window with said error
             "Automation Error",
             str(error)
         )
 
-    finally:
 
-        automation_running = False
-
+    finally:                                              #Whatever happened above...
+        automationRunning = False                              #...turn off the automation
 
 # ============================================================
 # REMOVE MODE
@@ -706,7 +640,7 @@ class EllipsusTransferApp(ctk.CTk):
             fg_color="darkred",
             hover_color="red",
             height=45,
-            command=emergency_stop
+            command=emergencyStop
         ).pack(
             padx=25,
             pady=(10, 5),
@@ -733,7 +667,7 @@ class EllipsusTransferApp(ctk.CTk):
 
         self.bind(
             "<F12>",
-            lambda event: emergency_stop()
+            lambda event: emergencyStop()
         )
 
     # ========================================================
@@ -827,7 +761,7 @@ class EllipsusTransferApp(ctk.CTk):
         )
 
         worker = threading.Thread(
-            target=import_pages,
+            target=exportPages,
             args=(
                 self.libreoffice_file,
                 ellipsus_url,
@@ -854,4 +788,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-#```
