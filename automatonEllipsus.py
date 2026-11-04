@@ -1,6 +1,6 @@
 #Ellipsus Automaton - Created by Kaia Aydelotte, 09.02.26, using ChatGPT and modified personally
 #Python file designed to automate copy/paste odt file transfer into Ellipsus
-#Last updated 09.02.26
+#Last updated 09.09.26
 
 """
 IMPORT:
@@ -299,11 +299,13 @@ def exportPages(
     finally:                                              #Whatever happened above...
         automationRunning = False                              #...turn off the automation
 
+
+
 # ============================================================
 # REMOVE MODE
 # ============================================================
 
-def remove_previous_page(update_status):
+def removePreviousPage(updateStatus):
     """
     Remove one manually delineated Ellipsus page.
 
@@ -322,46 +324,42 @@ def remove_previous_page(update_status):
     conservative and should be tested manually first.
     """
 
-    update_status("Preparing to remove one Ellipsus page...")
+    updateStatus("Preparing to remove one Ellipsus page...")
 
-    # Move to beginning of current page/document region.
-    pyautogui.hotkey("ctrl", "home")
+    pyautogui.hotkey("ctrl", "home")                          #Move to beginning of current page/document region.
+    if not safeSleep(DEFAULT_DELAY):                          #Pause to load...
+        return False                                          #...(while still checking for F12)
+    
 
-    if not safeSleep(DEFAULT_DELAY):
-        return False
-
-    return True
+    return True                                               #...then conclude the function
 
 
-def remove_pages(
-    number_of_pages,
-    test_mode,
-    update_status,
+def removePages(
+    numberOfPages,
+    testMode,
+    updateStatus,
 ):
     """
     Remove multiple previously imported pages.
 
-    The user should have the Ellipsus document focused before
+    The user should have the correct Ellipsus document open before
     starting this operation.
     """
 
-    global automation_running
+    global automationRunning                            #access the automationRunning var from outside function
 
-    automation_running = True
-    stopEvent.clear()
+    automationRunning = True                            #Set automationRunning to True - Automation has started
+    stopEvent.clear()                                   #And reset the Emergency Stop function in preperation
 
-    try:
+    try:                                                #try the following...
+        if not countdown(updateStatus):                       #Start the countdown
+            return                                            #    (Still watching for F12)
 
-        if not countdown(update_status):
-            return
-
-        for count in range(1, number_of_pages + 1):
-
-            if checkStop():
-                break
-
-            update_status(
-                f"Removal {count} of {number_of_pages}"
+        for count in range(1, numberOfPages + 1):             #For each page specified (Adding one so Python doesn't stop one short)...
+            if checkStop():                                   #...check for F12
+                break                                         #...(If F12 has been keyed, abort function)
+            updateStatus(                                     #...Update user on which page we are on 
+                f"Removal {count} of {numberOfPages}"
             )
 
             # ------------------------------------------------
@@ -376,7 +374,7 @@ def remove_pages(
             # manuscript text.
             # ------------------------------------------------
 
-            update_status(
+            updateStatus(                                     #Update user that it is ready for the next deletion
                 "Removal mode is ready for the next deletion."
             )
 
@@ -387,153 +385,140 @@ def remove_pages(
             #
             # We deliberately refuse to guess here.
 
-            if test_mode:
-                update_status(
+            if testMode:
+                updateStatus(
                     "TEST MODE: no text was deleted."
                 )
                 break
 
             # Safety stop until the deletion mechanism has been
             # calibrated.
-            update_status(
+            updateStatus(
                 "Deletion paused: selection calibration required."
             )
             break
 
     finally:
-
-        automation_running = False
+        automationRunning = False
 
 
 # ============================================================
 # GUI
 # ============================================================
 
-class EllipsusTransferApp(ctk.CTk):
+class EllipsusAutomaton(ctk.CTk):
 
-    def __init__(self):
+    def __init__(self):                          #Run automatically when program creates an instance of this class
+        """
+        This function builds the program window itself, and runs automatically
+        upon creating an instance of the class. This means it is responsible for:
+           -Building the controls
+           -Configuring the window, including what goes where
+           -Connecting buttons to the right code
+           -Connecting F12 to Emergency Stop
+        """
+        super().__init__()                       #access initialization behavior from parent class, CustomTkinter, to create the initial window
 
-        super().__init__()
+        self.title("Ellipsus Automaton")         #Title the window
+        self.geometry("720x650")                 #Set the window size to 720 x 650 pixels...
+        self.resizable(False, False)             #...and prevent user from resizing the window
 
-        self.title("Ellipsus Page Transfer")
-        self.geometry("720x650")
-        self.resizable(False, False)
+        self.libreOfficeDoc = ""                 #Create a variable to hold the path to the LibreOffice file
 
-        self.libreoffice_file = ""
+        #APPEARANCE
+        ctk.set_appearance_mode("dark")          #Set the window to dark mode...
+        ctk.set_default_color_theme("purple")    #...and set the color theme
 
-        # ----------------------------------------------------
-        # Appearance
-        # ----------------------------------------------------
-
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
-
-        # ----------------------------------------------------
-        # Title
-        # ----------------------------------------------------
-
-        title = ctk.CTkLabel(
+        #TITLE
+        title = ctk.CTkLabel(                    #Write the title out...
             self,
-            text="ELLIPSUS PAGE TRANSFER",
+            text="ELLIPSUS AUTOMATON",
             font=("Arial", 26, "bold")
         )
+        title.pack(pady=(25, 5))                 #... and put it in the window
 
-        title.pack(pady=(25, 5))
-
-        subtitle = ctk.CTkLabel(
+        subtitle = ctk.CTkLabel(                 #Then write the subtitle out...
             self,
             text="LibreOffice Writer → Ellipsus",
             font=("Arial", 14)
         )
+        subtitle.pack(pady=(0, 20))              #...and also put it in the window
 
-        subtitle.pack(pady=(0, 20))
 
-        # ----------------------------------------------------
-        # File selection
-        # ----------------------------------------------------
-
-        file_frame = ctk.CTkFrame(self)
-
-        file_frame.pack(
+        #FILE SELECTION CONTROLS
+        fileFrame = ctk.CTkFrame(self)           #Now make a "frame", or a box to put file controls in...
+        fileFrame.pack(                          #...and also put that into the window
             padx=25,
             pady=10,
-            fill="x"
+            fill="x"                             #...set that box to fill horizontally
         )
 
-        ctk.CTkLabel(
-            file_frame,
+        ctk.CTkLabel(                            #Write out a label...
+            fileFrame,                           #...and put it in the file frame box
             text="LibreOffice document"
-        ).pack(
-            anchor="w",
+        ).pack(                                  #...Put it in the window...
+            anchor="w",                          #...and anchor it "west", or to the left
             padx=15,
             pady=(10, 5)
         )
 
-        self.file_label = ctk.CTkLabel(
-            file_frame,
-            text="No document selected",
+        self.file_label = ctk.CTkLabel(          #write out a label...
+            fileFrame,                           #...put it in the file frame, but...
+            text="No document selected",         #...this one can be changed!
             wraplength=500
         )
-
-        self.file_label.pack(
+        self.file_label.pack(                    #...also put this one in the window
             padx=15,
             pady=5
         )
 
-        ctk.CTkButton(
-            file_frame,
-            text="Choose LibreOffice File",
-            command=self.choose_file
-        ).pack(
+        ctk.CTkButton(                           #Make the "Choose File" button...
+            fileFrame,                           #...(which goes in the file frame)
+            text="Choose File",
+            command=self.chooseFile              #...and have it call chooseFile when pressed
+        ).pack(                                  #...and also put this one in the window
             pady=(5, 15)
         )
 
-        # ----------------------------------------------------
-        # Ellipsus URL
-        # ----------------------------------------------------
 
-        url_frame = ctk.CTkFrame(self)
-
-        url_frame.pack(
+        #ELLIPSUS URL CONTROLS
+        urlFrame = ctk.CTkFrame(self)            #Now create a frame to hold the URL controls...
+        urlFrame.pack(                           #...and put that in the window
             padx=25,
             pady=10,
             fill="x"
         )
 
-        ctk.CTkLabel(
-            url_frame,
-            text="Ellipsus document URL"
-        ).pack(
-            anchor="w",
+        ctk.CTkLabel(                            #Now make a label for the text box...
+            urlFrame,                            #...put it in the URL frame...
+            text="Ellipsus Document URL"
+        ).pack(                                  #...and put it in the window
+            anchor="w",                          #...also anchor this to the left
             padx=15,
             pady=(10, 5)
         )
 
-        self.url_entry = ctk.CTkEntry(
-            url_frame,
+        self.url_entry = ctk.CTkEntry(           #Now, create the textbox to enter the URL...
+            urlFrame,                            #...put said textbox in the URL frame...
             placeholder_text="Paste the Ellipsus document URL here..."
         )
-
-        self.url_entry.pack(
+        self.url_entry.pack(                     #...and put that in the window
             padx=15,
             pady=(0, 15),
-            fill="x"
+            fill="x"                             #...have it fill horizontally
         )
 
-        # ----------------------------------------------------
-        # Import controls
-        # ----------------------------------------------------
 
-        import_frame = ctk.CTkFrame(self)
-
-        import_frame.pack(
+        #IMPORT CONTROLS
+        importFrame = ctk.CTkFrame(self)         #Now create the Import Controls box...
+        importFrame.pack(                        #...put that in the window...
             padx=25,
             pady=10,
             fill="x"
         )
 
         ctk.CTkLabel(
-            import_frame,
+            importFrame,
             text="IMPORT FROM LIBREOFFICE",
             font=("Arial", 16, "bold")
         ).pack(
@@ -542,7 +527,7 @@ class EllipsusTransferApp(ctk.CTk):
             pady=(15, 10)
         )
 
-        page_row = ctk.CTkFrame(import_frame)
+        page_row = ctk.CTkFrame(importFrame)
 
         page_row.pack(
             padx=15,
@@ -586,7 +571,7 @@ class EllipsusTransferApp(ctk.CTk):
         )
 
         ctk.CTkButton(
-            import_frame,
+            importFrame,
             text="START IMPORT",
             height=40,
             command=self.start_import
