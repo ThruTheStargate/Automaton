@@ -429,7 +429,7 @@ class EllipsusAutomaton(ctk.CTk):
 
         #APPEARANCE
         ctk.set_appearance_mode("dark")          #Set the window to dark mode...
-        ctk.set_default_color_theme("purple")    #...and set the color theme
+        ctk.set_default_color_theme("dark-blue")  #...and set the color theme          [JSON STYLE FILE HERE]
 
         #TITLE
         title = ctk.CTkLabel(                    #Write the title out...
