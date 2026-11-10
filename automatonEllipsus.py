@@ -3,7 +3,7 @@
 #Last updated 09.09.26
 
 """
-IMPORT:
+EXPORT:
     1. Opens the selected LibreOffice document.
     2. Starts at the specified Writer page.
     3. Copies one physical Writer page.
@@ -12,13 +12,13 @@ IMPORT:
     6. Repeats until the end of the Writer document.
 
 REMOVE:
-    Removes previously imported Ellipsus "pages" one at a time.
+    Removes previously exported Ellipsus "pages" one at a time.
     The user manually places the cursor at the END of the page they want
     removed, then the program searches backward for the previous divider
     and deletes that page.
 
 SAFETY:
-    F12 immediately stops the automation.
+    ESC immediately stops the automation.
     The program includes a countdown before automation begins.
 
 Requirements:
@@ -48,8 +48,8 @@ DEFAULT_DELAY = 0.75
 DEFAULT_PAGE_DELAY = 1.5
 COUNTDOWN_SECONDS = 5
 
-# F12 is the emergency stop key.
-STOP_KEY = "f12"
+# ESC is the emergency stop key.
+STOP_KEY = "ESC"
 
 # Ellipsus Markdown divider. Ellipsus recognizes this Markdown pattern as a Divider.
 ELLIPSUS_DIVIDER = "----***___"
@@ -59,7 +59,7 @@ ELLIPSUS_DIVIDER = "----***___"
 # GLOBAL STATE
 # ============================================================
 
-stopEvent = threading.Event()         #initialize emergency stop thread that listens for the F12 key
+stopEvent = threading.Event()         #initialize emergency stop thread that listens for the ESC key
 automationRunning = False
 
 
@@ -69,7 +69,7 @@ automationRunning = False
 
 def emergencyStop():                    #Multi-OS
     """Immediately request that the current automation stop."""
-    stopEvent.set()                     #trigger thread - F12 was pressed
+    stopEvent.set()                     #trigger thread - ESC was pressed
 
 
 def checkStop():                        #Multi-OS
@@ -78,11 +78,11 @@ def checkStop():                        #Multi-OS
 
 
 def safeSleep(seconds):                  #Multi-OS
-    """sleep while checking for an emergency stop (F12 stays responsive)"""
+    """sleep while checking for an emergency stop (ESC stays responsive)"""
 
     endTime = time.time() + seconds      #set endTime to current time + desired seconds
     while time.time() < endTime:         #while the current time is less than the endTime....
-        if checkStop():                  #if the user pressed the F12 key...
+        if checkStop():                  #if the user pressed the ESC key...
             return False                 #...STOP THE LOOP (now the program can run emergency stop protocols)
         time.sleep(0.05)                 #...but if they haven't pressed the key, run for .05 more seconds
 
@@ -93,14 +93,14 @@ def countdown(updateStatus):                             #Multi-OS
     """Give the user a countdown before automation begins."""
 
     for remaining in range(COUNTDOWN_SECONDS, 0, -1):    #if there is still time left in the countdown...
-        if checkStop():                                  #...first, check if the user has pressed F12
+        if checkStop():                                  #...first, check if the user has pressed ESC
             return False                                 #...if so, STOP the function
         updateStatus(                                    #otherwise, display time left and remind user no touchie
             f"Starting in {remaining}... "
             f"DO NOT TOUCH THE MOUSE OR KEYBOARD."
         )
         if not safeSleep(1):                             #...Pause for a second....
-            return False                                 #(But still STOP if user keys F12)
+            return False                                 #(But still STOP if user keys ESC)
 
     updateStatus("Automation started.")                  #Once loop has finished, display that Automation has started...
     return True                                          #...and return true. Showtime, suckers!
@@ -127,16 +127,16 @@ def goToPage(pageNumber, updateStatus):                         #Multi-OS
 
     updateStatus(f"Navigating to page {pageNumber}...")          #Display that we are navigating to desired page...
     pyautogui.hotkey("ctrl", "home")                             #Put cursor at beginning of document.
-    if not safeSleep(DEFAULT_DELAY):                             #Pause to load. If safeSleep returns False (i.e. F12 was pressed)
+    if not safeSleep(DEFAULT_DELAY):                             #Pause to load. If safeSleep returns False (i.e. ESC was pressed)
         return False                                             #...HALT. Return False and end function.
 
     for _ in range(pageNumber - 1):                              #otherise, loop the number of pages we need to advance (one less than total)
-        if checkStop():                                          #For each loop, check if F12 has been pressed...
+        if checkStop():                                          #For each loop, check if ESC has been pressed...
             return False                                         #...if so, stop loop!
 
         pyautogui.hotkey("ctrl", "pagedown")                     #otherwise, advance one page (program uses ctrl/pagedown shortcut)
         if not safeSleep(0.08):                                  #...pause .08 seconds for LibreOffice to catch up...
-            return False                                         #...but if user presses F12 during the pause, stop anyways
+            return False                                         #...but if user presses ESC during the pause, stop anyways
 
     pyautogui.hotkey("ctrl", "pageup")                           #automate ctrl/pageup to go to top of the right page...
 
@@ -148,7 +148,7 @@ def selectCurrentPage(updateStatus):                #Multi-OS
 
     updateStatus("Selecting current page...")       #Display message that program is selecting page...
     pyautogui.hotkey("ctrl", "pageup")              #...Go to top of page...
-    if not safeSleep(0.2):                          #...pause to load. If F12 is pressed...
+    if not safeSleep(0.2):                          #...pause to load. If ESC is pressed...
         return False                                #STOP the function
     pyautogui.hotkey("ctrl", "shift", "pagedown")   #...Use ctrl/pagedown to navigate to the bottom while holding shift to select text
 
@@ -202,7 +202,7 @@ def insertEllipsusDivider(updateStatus):              #Multi-OS
 
     updateStatus("Inserting Ellipsus divider...")     #display message that program is inserting devider
     pyautogui.write(ELLIPSUS_DIVIDER, interval=0.01)  #have pyautogui type out Markdown divider shortcut
-    if not safeSleep(0.2):                            #pause to load - if user presses F12...
+    if not safeSleep(0.2):                            #pause to load - if user presses ESC...
         return False                                  #...STOP function here
 
     pyautogui.press("enter")                          #automate key ENTER
@@ -211,7 +211,7 @@ def insertEllipsusDivider(updateStatus):              #Multi-OS
 
 
 # ============================================================
-# IMPORT MODE
+# EXPORT MODE
 # ============================================================
 
 def exportPages(
@@ -232,35 +232,35 @@ def exportPages(
 
     try:                                                  #try the below...
         if not openLibreofficeFile(file, updateStatus):        #open the LibreOffice File...
-            return                                             #...(careful to check for F12)
-        if checkStop():                                        #...check if user pressed F12 again...
+            return                                             #...(careful to check for ESC)
+        if checkStop():                                        #...check if user pressed ESC again...
             return                                             #...(and end function if they did)
         if not openEllipsus(url, updateStatus):                #...then open to the Ellipsus document...
-            return                                             #...(still checking for F12)
-        if checkStop():                                        #...and check if they pressed F12 again
+            return                                             #...(still checking for ESC)
+        if checkStop():                                        #...and check if they pressed ESC again
             return                                             #...(still end function if they did)
         if not countdown(updateStatus):                        #Now start the countdown...
-            return                                             #...(And check for F12 again)
+            return                                             #...(And check for ESC again)
         if not goToPage(startingPage, updateStatus):           #...And go to the page the user selected!
-            return                                             #...(Still check for F12)
+            return                                             #...(Still check for ESC)
         
         currentPage = startingPage                             #Initialize the currentPage var and set it to the starting page
 
         #MAIN LOOP
-        while not checkStop():                                 #While the F12 button hasn't been keyed...
+        while not checkStop():                                 #While the ESC button hasn't been keyed...
 
             updateStatus(f"Processing page {currentPage}...")  #Update the user that we are starting on page currentPage
             if not selectCurrentPage(updateStatus):            #Select the page text...
-                break                                          #...(Check for F12)
+                break                                          #...(Check for ESC)
             if not copyCurrentPage(updateStatus):              #...copy the text...
-                break                                          #...(Check for F12)
+                break                                          #...(Check for ESC)
 
             pyautogui.hotkey("alt", "tab")                     #Use alt/tab to switch to Ellipsus.
 
             if not safeSleep(DEFAULT_PAGE_DELAY):              #Pause to load...
-                break                                          #...(Check for F12)
+                break                                          #...(Check for ESC)
             if not pasteIntoEllipsus(updateStatus):            #...and paste the text
-                break                                          #...(Check for F12)
+                break                                          #...(Check for ESC)
             if not insertEllipsusDivider(updateStatus):        #...insert divider...
                 break
 
@@ -268,24 +268,24 @@ def exportPages(
 
             if testMode:                                       #Test mode intentionally stops after ONE page.
                 updateStatus(f"TEST COMPLETE — page {currentPage} transferred.") #Alert user that Test concluded
-                break                                          #...(Check F12)
+                break                                          #...(Check ESC)
 
             pyautogui.hotkey("alt", "tab")                     #Switch back to LibreOffice.
             if not safeSleep(DEFAULT_PAGE_DELAY):              #Pause to load...
-                break                                          #...(Check F12)
+                break                                          #...(Check ESC)
             pyautogui.hotkey("ctrl", "pagedown")               #...and move to next page.
             if not safeSleep(DEFAULT_DELAY):                   #...Pause to load...
-                break                                          #...(Check F12)
+                break                                          #...(Check ESC)
 
             currentPage += 1                                   #...and add one to currentPage. We are moving to next page
 
         if checkStop():                                        #once loop is complete...
-            updateStatus(                                      #...if the loop was prematurely killed by F12...
+            updateStatus(                                      #...if the loop was prematurely killed by ESC...
                 f"STOPPED by emergency command. "              #...alert the user that program was stopped prematurely...
                 f"Last attempted page: {currentPage}"          #...and what page it stopped on
             )
         else:                                                  #...if instead the loop completed successfully...
-            updateStatus("Import finished.")                   #...tell the user that it worked
+            updateStatus("Emport finished.")                   #...tell the user that it worked
 
 
     except Exception as error:                            #Unless some sort of issue occured...
@@ -328,7 +328,7 @@ def removePreviousPage(updateStatus):
 
     pyautogui.hotkey("ctrl", "home")                          #Move to beginning of current page/document region.
     if not safeSleep(DEFAULT_DELAY):                          #Pause to load...
-        return False                                          #...(while still checking for F12)
+        return False                                          #...(while still checking for ESC)
     
 
     return True                                               #...then conclude the function
@@ -340,7 +340,7 @@ def removePages(
     updateStatus,
 ):
     """
-    Remove multiple previously imported pages.
+    Remove multiple previously exported pages.
 
     The user should have the correct Ellipsus document open before
     starting this operation.
@@ -353,11 +353,11 @@ def removePages(
 
     try:                                                #try the following...
         if not countdown(updateStatus):                       #Start the countdown
-            return                                            #    (Still watching for F12)
+            return                                            #    (Still watching for ESC)
 
         for count in range(1, numberOfPages + 1):             #For each page specified (Adding one so Python doesn't stop one short)...
-            if checkStop():                                   #...check for F12
-                break                                         #...(If F12 has been keyed, abort function)
+            if checkStop():                                   #...check for ESC
+                break                                         #...(If ESC has been keyed, abort function)
             updateStatus(                                     #...Update user on which page we are on 
                 f"Removal {count} of {numberOfPages}"
             )
@@ -402,6 +402,8 @@ def removePages(
         automationRunning = False
 
 
+
+
 # ============================================================
 # GUI
 # ============================================================
@@ -415,7 +417,7 @@ class EllipsusAutomaton(ctk.CTk):
            -Building the controls
            -Configuring the window, including what goes where
            -Connecting buttons to the right code
-           -Connecting F12 to Emergency Stop
+           -Connecting ESC to Emergency Stop
         """
         super().__init__()                       #access initialization behavior from parent class, CustomTkinter, to create the initial window
 
@@ -462,12 +464,12 @@ class EllipsusAutomaton(ctk.CTk):
             pady=(10, 5)
         )
 
-        self.file_label = ctk.CTkLabel(          #write out a label...
+        self.fileLabel = ctk.CTkLabel(           #write out a label...
             fileFrame,                           #...put it in the file frame, but...
             text="No document selected",         #...this one can be changed!
             wraplength=500
         )
-        self.file_label.pack(                    #...also put this one in the window
+        self.fileLabel.pack(                     #...also put this one in the window
             padx=15,
             pady=5
         )
@@ -498,113 +500,108 @@ class EllipsusAutomaton(ctk.CTk):
             pady=(10, 5)
         )
 
-        self.url_entry = ctk.CTkEntry(           #Now, create the textbox to enter the URL...
+        self.urlEntry = ctk.CTkEntry(           #Now, create the textbox to enter the URL...
             urlFrame,                            #...put said textbox in the URL frame...
             placeholder_text="Paste the Ellipsus document URL here..."
         )
-        self.url_entry.pack(                     #...and put that in the window
+        self.urlEntry.pack(                     #...and put that in the window
             padx=15,
             pady=(0, 15),
             fill="x"                             #...have it fill horizontally
         )
 
 
-        #IMPORT CONTROLS
-        importFrame = ctk.CTkFrame(self)         #Now create the Import Controls box...
-        importFrame.pack(                        #...put that in the window...
+        #EXPORT CONTROLS
+        exportFrame = ctk.CTkFrame(self)         #Now create the Export Controls box...
+        exportFrame.pack(                        #...put that in the window...
             padx=25,
             pady=10,
             fill="x"
         )
 
-        ctk.CTkLabel(
-            importFrame,
-            text="IMPORT FROM LIBREOFFICE",
+        ctk.CTkLabel(                            #Label the controls...
+            exportFrame,                         #...(Put that in the export box)
+            text="EXPORT FROM LIBREOFFICE",
             font=("Arial", 16, "bold")
-        ).pack(
+        ).pack(                                  #...and put that in the window
             anchor="w",
             padx=15,
             pady=(15, 10)
         )
 
-        page_row = ctk.CTkFrame(importFrame)
-
-        page_row.pack(
+        pageRow = ctk.CTkFrame(exportFrame)      #Make another frame within the first frame, to hold a few controls...
+        pageRow.pack(                            #...and put it in the window
             padx=15,
             pady=5,
             fill="x"
         )
 
-        ctk.CTkLabel(
-            page_row,
-            text="Starting Writer page:"
-        ).pack(
+        ctk.CTkLabel(                            #now put another label, for the starting page textbox...
+            pageRow,                             #...put that in the pageRow frame
+            text="Start Page:"
+        ).pack(                                  #...then put it in the window
             side="left"
         )
 
-        self.start_page_entry = ctk.CTkEntry(
-            page_row,
+
+        self.startPageEntry = ctk.CTkEntry(    #Now make a small textbox to put the start page in...
+            pageRow,                             #...put it in the pageRow...
             width=80
         )
-
-        self.start_page_entry.insert(
+        self.startPageEntry.insert(            #...insert '1' (for page 1) at "position 0" of the textbox...
             0,
             "1"
         )
-
-        self.start_page_entry.pack(
+        self.startPageEntry.pack(              #...then put it in the window on the left side.
             side="left",
             padx=10
         )
 
-        self.test_import_var = tk.BooleanVar(
-            value=True
-        )
 
-        ctk.CTkCheckBox(
-            page_row,
-            text="Test mode (1 page only)",
-            variable=self.test_import_var
-        ).pack(
+        self.testCheckbox = tk.BooleanVar(    #Import the boolean value for Test Mode checkbox
+            value=False                          #...and set the default value to false...
+        )
+        ctk.CTkCheckBox(                         #...Create the checkbox itself...
+            pageRow,                             #...Put it in the pageRow frame...
+            text="Test Mode (1 page only)",      #...label it...
+            variable=self.testCheckbox
+        ).pack(                                  #...then put it in the window on the left side
             side="left",
             padx=15
         )
 
-        ctk.CTkButton(
-            importFrame,
-            text="START IMPORT",
+        ctk.CTkButton(                           #Now create the export button...
+            exportFrame,                         #...put it in the Export Controls frame...
+            text="START EXPORT",                 #...label it...
             height=40,
-            command=self.start_import
-        ).pack(
+            command=self.startExport
+        ).pack(                                  #...then put it into the window
             padx=15,
             pady=(10, 15),
             fill="x"
         )
 
-        # ----------------------------------------------------
-        # Removal controls
-        # ----------------------------------------------------
 
-        remove_frame = ctk.CTkFrame(self)
-
-        remove_frame.pack(
+        #REMOVAL CONTROLS
+        removalFrame = ctk.CTkFrame(self)        #Create the Removal Controls box...
+        removalFrame.pack(                       #...and put it in the window
             padx=25,
             pady=10,
             fill="x"
         )
 
-        ctk.CTkLabel(
-            remove_frame,
-            text="REMOVE PREVIOUSLY IMPORTED PAGES",
+        ctk.CTkLabel(                            #Label the Removal Controls... 
+            removalFrame,                        #...put it in the Removal Controls box...
+            text="REMOVE PREVIOUSLY EXPORTED PAGES",
             font=("Arial", 16, "bold")
-        ).pack(
+        ).pack(                                  #...and put it in the window
             anchor="w",
             padx=15,
             pady=(15, 5)
         )
 
-        ctk.CTkLabel(
-            remove_frame,
+        ctk.CTkLabel(                            #PLACEHOLDER LABEL
+            removalFrame,
             text=(
                 "Removal mode is intentionally disabled until the "
                 "Ellipsus selection behavior is calibrated safely."
@@ -615,149 +612,133 @@ class EllipsusAutomaton(ctk.CTk):
             pady=5
         )
 
-        # ----------------------------------------------------
-        # Emergency stop
-        # ----------------------------------------------------
 
-        ctk.CTkButton(
+        #EMERGENCY STOP
+        ctk.CTkButton(                           #Create the Emergency Stop Button....
             self,
-            text="EMERGENCY STOP  —  F12",
+            text="EMERGENCY STOP  —  ESC",       #...label it...
             fg_color="darkred",
             hover_color="red",
             height=45,
-            command=emergencyStop
-        ).pack(
+            command=emergencyStop                #...and key the button to the emergencyStop command
+        ).pack(                                  #...then put it in the window
             padx=25,
             pady=(10, 5),
             fill="x"
         )
 
-        # ----------------------------------------------------
-        # Status
-        # ----------------------------------------------------
 
-        self.status_label = ctk.CTkLabel(
+        #STATUS
+        self.statusLabel = ctk.CTkLabel(
             self,
             text="Status: Ready",
             font=("Arial", 13)
         )
 
-        self.status_label.pack(
+        self.statusLabel.pack(
             pady=10
         )
 
-        # ----------------------------------------------------
-        # F12 emergency stop
-        # ----------------------------------------------------
 
-        self.bind(
-            "<F12>",
-            lambda event: emergencyStop()
+        #EMERGENCY STOP = ESC
+        self.bind(                              #bind this event to the program window, which is...
+            "<Escape>",                         #...pressing ESC
+            lambda event: emergencyStop()       #If keyed, 
         )
+
+
 
     # ========================================================
     # GUI METHODS
     # ========================================================
 
-    def choose_file(self):
+    def chooseFile(self):
+        """Funtion called when user chooses a file"""
 
-        filename = filedialog.askopenfilename(
-            title="Choose LibreOffice document",
-            filetypes=[
-                ("LibreOffice Writer",
+        filename = filedialog.askopenfilename(     #open file window for user to browse files, copy file path of selected file
+            title="Choose Document (.odt, .docx)", #...title the file selection window...
+            filetypes=[                            #...and restrict possible filetypes to .odt and .docx
+                ("LibreOffice Doc",
                  "*.odt *.docx"),
-                ("All files",
+                ("All files",                      #...Still show all files though (* means "anything before this")
                  "*.*")
             ]
         )
+        if filename:                              #if the user actually selected a file...
+            self.libreOfficeDoc = filename        #...store this to the application window, so we can access it later
 
-        if filename:
-
-            self.libreoffice_file = filename
-
-            self.file_label.configure(
-                text=filename
+            self.fileLabel.configure(             #...then change the fileLabel we created earlier...
+                text = filename                   #...to the name of the file selected...
             )
-
-            self.update_status(
+            self.updateStatus(                    #...then alert the user that we have selected the file
                 "LibreOffice document selected."
             )
 
-    def update_status(self, message):
 
-        self.after(
-            0,
-            lambda: self.status_label.configure(
-                text=f"Status: {message}"
+    def updateStatus(self, message):
+        self.after(                               
+            0,                                     #as soon as automatonEllipsus can process this...
+            lambda: self.statusLabel.configure(    #...configure the status widget...
+                text=f"Status: {message}"          #...to show the desired text
             )
         )
 
-    def start_import(self):
+    def startExport(self):
+        """Function called when Start Export button is clicked"""
 
-        if automation_running:
-            messagebox.showwarning(
+        if automationRunning:                         #Check if the automation is running. If so...
+            messagebox.showwarning(                   #...tell the user that...
                 "Already Running",
                 "Automation is already running."
             )
-            return
-
-        if not self.libreoffice_file:
-
-            messagebox.showerror(
+            return                                    #...and stop export attempt
+        if not self.libreOfficeDoc:                   #Next, is there a document saved? If not...
+            messagebox.showerror(                     #...tell the user that...
                 "Missing File",
-                "Choose your LibreOffice document first."
+                "Choose your document first."
             )
+            return                                    #...and stop the export function
 
-            return
+        ellipsusURL = self.urlEntry.get().strip()     #Retrieve the URL from the URL box and strip any white space off the ends        
 
-        ellipsus_url = self.url_entry.get().strip()
-
-        if not ellipsus_url:
-
-            messagebox.showerror(
+        if not ellipsusURL:                           #If there is no URL waiting in the box...
+            messagebox.showerror(                     #...tell the user they need to enter a URL...
                 "Missing URL",
                 "Enter the Ellipsus document URL."
             )
-
-            return
+            return                                    #...and stop the export function
 
         try:
-
-            starting_page = int(
-                self.start_page_entry.get()
+            startingPage = int(                       #Retrieve the contents of the startPageEntry box and turn it into an integer...
+                self.startPageEntry.get()
             )
-
-            if starting_page < 1:
-                raise ValueError
-
+            if startingPage < 1:                      #If that page is less than one, or they didn't enter a page...
+                raise ValueError                      #...raise ValueError...
+            
         except ValueError:
-
-            messagebox.showerror(
+            messagebox.showerror(                     #...and tell the user to give us a real start page
                 "Invalid Page",
                 "Starting page must be a positive whole number."
             )
-
             return
 
-        test_mode = self.test_import_var.get()
-
-        self.update_status(
-            "Preparing import..."
+        testMode = self.testCheckbox.get()           #Check if "test mode" is checked...
+        self.updateStatus(                           #...and alert user we are preparing for export
+            "Preparing export..."
         )
 
-        worker = threading.Thread(
-            target=exportPages,
-            args=(
-                self.libreoffice_file,
-                ellipsus_url,
-                starting_page,
-                test_mode,
-                self.update_status,
+        exporting = threading.Thread(                #create a new thread...
+            target = exportPages,                    #...and have it execute the exportPages function...
+            args = (                                 #...passing the following arguements through the function
+                self.libreOfficeDoc,
+                ellipsusURL,
+                startingPage,
+                testMode,
+                self.updateStatus,                  #...including the updateStatus function, so exportPages can use updateStatus
             ),
-            daemon=True
+            daemon = True                           #...then mark this as a daemon thread, so the user can close the window mid-function
         )
-
-        worker.start()
+        exporting.start()                           #Now start the thread. 
 
 
 # ============================================================
@@ -765,11 +746,10 @@ class EllipsusAutomaton(ctk.CTk):
 # ============================================================
 
 def main():
+    """Function designed to initialize application"""
+    app = EllipsusAutomaton()                           #Create an instance of EllipsusAutomaton
+    app.mainloop()                                      #Start the GUI event loop
 
-    app = EllipsusTransferApp()
 
-    app.mainloop()
-
-
-if __name__ == "__main__":
+if __name__ == "__main__":                              #only execute main function if the user is executing this file
     main()
