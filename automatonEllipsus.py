@@ -1,6 +1,6 @@
 #Ellipsus Automaton - Created by Kaia Aydelotte, 09.02.26, using ChatGPT and modified personally
 #Python file designed to automate copy/paste odt file transfer into Ellipsus
-#Last updated 09.09.26
+#Last updated 11.10.26
 
 """
 EXPORT:
@@ -28,21 +28,24 @@ IMPORTANT:
     This program controls your mouse and keyboard.
     Do not touch the keyboard/mouse while automation is running.
 """
+###COME BACK TO THIS
 
 #IMPORTS AND VARIABLES
+import customtkinter as ctk                 #also responsible for creating the window
+from OSTask import OSTask                   #import OSTask class to handle the OS the computer is currently on
+#from pathlib import Path
 import platform                             #helps program detect which operating system is in use
-import time                                 #allows program to utilize and measure time
-import threading                            #allows program to run threads
-import webbrowser
-import tkinter as tk
-from tkinter import filedialog, messagebox
 import pyautogui
 import pyperclip
-import customtkinter as ctk
+import time                                 #allows program to utilize and measure time
+import threading                            #allows program to run threads
+import tkinter as tk                        #responsible for creating the window
+#from tkinter import filedialog, messagebox
+from tkinter import messagebox
+import webbrowser
 
-from OSTask import OSTask                  #import OSTask class to handle the OS the computer is currently on
+thisOS = OSTask()                           #initialize instance of OSTask to handle OS differences
 
-thisOS = OSTask()                          #initialize instance of OSTask to handle OS differences
 
 DEFAULT_DELAY = 0.75
 DEFAULT_PAGE_DELAY = 1.5
@@ -421,15 +424,16 @@ class EllipsusAutomaton(ctk.CTk):
         """
         super().__init__()                       #access initialization behavior from parent class, CustomTkinter, to create the initial window
 
+
         self.title("Ellipsus Automaton")         #Title the window
         self.geometry("720x650")                 #Set the window size to 720 x 650 pixels...
         self.resizable(False, False)             #...and prevent user from resizing the window
-
         self.libreOfficeDoc = ""                 #Create a variable to hold the path to the LibreOffice file
 
         #APPEARANCE
         ctk.set_appearance_mode("dark")          #Set the window to dark mode...
         ctk.set_default_color_theme("dark-blue")  #...and set the color theme          [JSON STYLE FILE HERE]
+
 
         #TITLE
         title = ctk.CTkLabel(                    #Write the title out...
@@ -653,24 +657,29 @@ class EllipsusAutomaton(ctk.CTk):
     # ========================================================
 
     def chooseFile(self):
-        """Funtion called when user chooses a file"""
+        """Function called when user clicks Select File button"""
 
-        filename = filedialog.askopenfilename(     #open file window for user to browse files, copy file path of selected file
-            title="Choose Document (.odt, .docx)", #...title the file selection window...
-            filetypes=[                            #...and restrict possible filetypes to .odt and .docx
+        ###COME BACK TO THIS
+        """
+        filename = filedialog.askopenfilename(       #open file window for user to browse files, copy file path of selected file
+            title = "Choose Document  (.odt, .docx)", #...title the file selection window...
+            initialdir = Path.home(),                #...open the window to "Home"...
+            filetypes = [                            #...and restrict possible filetypes to .odt and .docx
                 ("LibreOffice Doc",
                  "*.odt *.docx"),
-                ("All files",                      #...Still show all files though (* means "anything before this")
+                ("All files",                        #...Still show all files though (* means "anything before this")
                  "*.*")
             ]
         )
-        if filename:                              #if the user actually selected a file...
-            self.libreOfficeDoc = filename        #...store this to the application window, so we can access it later
+        """
+        filename = thisOS.fileExplorer()
+        if filename:                                 #if the user actually selected a file...
+            self.libreOfficeDoc = filename           #...store this to the application window, so we can access it later
 
-            self.fileLabel.configure(             #...then change the fileLabel we created earlier...
-                text = filename                   #...to the name of the file selected...
+            self.fileLabel.configure(                #...then change the fileLabel we created earlier...
+                text = filename                      #...to the name of the file selected...
             )
-            self.updateStatus(                    #...then alert the user that we have selected the file
+            self.updateStatus(                       #...then alert the user that we have selected the file
                 "LibreOffice document selected."
             )
 
