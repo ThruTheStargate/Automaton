@@ -21,28 +21,19 @@ SAFETY:
     ESC immediately stops the automation.
     The program includes a countdown before automation begins.
 
-Requirements:
-    pip install pyautogui pyperclip customtkinter
-
 IMPORTANT:
     This program controls your mouse and keyboard.
     Do not touch the keyboard/mouse while automation is running.
 """
-###COME BACK TO THIS
 
 #IMPORTS AND VARIABLES
 import customtkinter as ctk                 #also responsible for creating the window
 from OSTask import OSTask                   #import OSTask class to handle the OS the computer is currently on
-#from pathlib import Path
-import platform                             #helps program detect which operating system is in use
 import pyautogui
-import pyperclip
 import time                                 #allows program to utilize and measure time
 import threading                            #allows program to run threads
 import tkinter as tk                        #responsible for creating the window
-#from tkinter import filedialog, messagebox
 from tkinter import messagebox
-import webbrowser
 
 thisOS = OSTask()                           #initialize instance of OSTask to handle OS differences
 
@@ -114,14 +105,6 @@ def countdown(updateStatus):                             #Multi-OS
 # LIBREOFFICE
 # ============================================================
 
-def openLibreofficeFile(filename, updateStatus):     #Multi-OS
-    """Opens the selected LibreOffice document."""
-
-    updateStatus("Opening LibreOffice document...")   #tell user the file is opening by displaying message on GUI...
-    thisOS.openFile(filename)                         #...then call OSTask function to open the right LibreOffice file
-    return safeSleep(5)                               #...then pause for five seconds
-
-
 def goToPage(pageNumber, updateStatus):                         #Multi-OS
     """
     Starts at the beginning of document and navigates to desired page 
@@ -170,17 +153,6 @@ def copyCurrentPage(updateStatus):                  #Multi-OS
 # ============================================================
 # ELLIPSUS
 # ============================================================
-
-def openEllipsus(url, updateStatus):                    #Multi-OS
-    """
-    Opens the specified Ellipsus document in the default browser.
-    (The user must already be signed into Ellipsus in that browser.)
-    """
-    updateStatus("Opening Ellipsus document...")        #display message that program is opening Ellipsus doc
-    webbrowser.open(url)                                #open Ellipsus doc from the URL
-
-    return safeSleep(5)                                 #return delay - Finished!
-
 
 def pasteIntoEllipsus(updateStatus):               #Multi-OS
     """Pastes the copied page into Ellipsus."""
@@ -234,11 +206,11 @@ def exportPages(
     stopEvent.clear()                                     #Then reset the Emergency Stop Sensor
 
     try:                                                  #try the below...
-        if not openLibreofficeFile(file, updateStatus):        #open the LibreOffice File...
+        if not thisOS.launchLibreOffice(file, updateStatus):   #open the LibreOffice file...
             return                                             #...(careful to check for ESC)
         if checkStop():                                        #...check if user pressed ESC again...
             return                                             #...(and end function if they did)
-        if not openEllipsus(url, updateStatus):                #...then open to the Ellipsus document...
+        if not thisOS.launchEllipsus(url, updateStatus):       #...then open to the Ellipsus document...
             return                                             #...(still checking for ESC)
         if checkStop():                                        #...and check if they pressed ESC again
             return                                             #...(still end function if they did)
