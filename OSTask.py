@@ -61,15 +61,18 @@ class OSTask:
 
         return filename
 
-    def launchLibreOffice(filename, updateStatus):     #Multi-OS
+    def launchLibreOffice(filename, updateStatus, safeSleep):
         """Initializes the selected LibreOffice document the first time."""
 
         updateStatus("Opening LibreOffice document...")   #tell user the file is opening by displaying message on GUI...
-        thisOS.openFile(filename)                         #...call OSTask function to initialize the right LibreOffice file...
-        
+        self.openFile(filename)                           #then launch the right LibreOffice file
+
+        docTitle = Path(filename).stem.lower()            #Now, extract just the document title from the file name, for identification
+        timeout = 30                                      #
+
         return safeSleep(5)                               #...then pause for five seconds
 
-    def launchEllipsus(url, updateStatus):                    #Multi-OS
+    def launchEllipsus(url, updateStatus, safeSleep):
         """
         Initializes the specified Ellipsus document in the default browser
         the first time.
@@ -88,4 +91,67 @@ class OSTask:
     def openEllipsus(self):
         """Seeks out the right, open Ellipsus tab"""
         ...
+
     
+
+
+
+    while time.monotonic() < timeout:
+        matches = [
+            window for window in pwc.getAllWindows()
+            if titlePart in window.title.lower()
+        ]
+
+        if len(matches) == 1:
+            self.libreOfficeWindow = matches[0]
+            return
+
+        if len(matches) > 1:
+            raise Exception("Multiple LibreOffice windows found.")
+
+        time.sleep(0.25)
+
+    raise TimeoutError("LibreOffice window was not found.")
+
+
+def initializeEllipsus(self, url, titlePart):
+    """Opens Ellipsus and stores its browser window reference."""
+    webbrowser.open(url)
+
+    titlePart = titlePart.lower()
+    timeout = time.monotonic() + 30
+
+    while time.monotonic() < timeout:
+        matches = [
+            window for window in pwc.getAllWindows()
+            if titlePart in window.title.lower()
+        ]
+
+        if len(matches) == 1:
+            self.ellipsusWindow = matches[0]
+            return
+
+        if len(matches) > 1:
+            raise Exception("Multiple Ellipsus windows found.")
+
+        time.sleep(0.25)
+
+    raise TimeoutError("Ellipsus browser window was not found.")
+
+
+def openLibreOffice(self):
+    """Activates the initialized LibreOffice window."""
+    if self.libreOfficeWindow is None or not self.libreOfficeWindow.isAlive:
+        raise Exception("LibreOffice window is unavailable.")
+
+    if not self.libreOfficeWindow.activate(wait=True):
+        raise Exception("Could not activate LibreOffice.")
+
+
+def openEllipsus(self):
+    """Activates the initialized Ellipsus browser window."""
+    if self.ellipsusWindow is None or not self.ellipsusWindow.isAlive:
+        raise Exception("Ellipsus browser window is unavailable.")
+
+    if not self.ellipsusWindow.activate(wait=True):
+        raise Exception("Could not activate Ellipsus.")
