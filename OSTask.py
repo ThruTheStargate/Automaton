@@ -1,11 +1,15 @@
 #OSTask - Created by Kaia Aydelotte, 09.03.26
 #Class designed to handle differences in operating systems
-#Last updated 11.10.26
+#Last updated 11.17.26
 
 import os           #General operating-system functions
 from pathlib import Path
 import platform     #Detects current system OS
+#[
+import sys
+sys.path.insert(0, str(Path.home() / ".local/lib/pywinctl-packages"))
 import pywinctl as pwc
+#]
 import subprocess   #Launches/interacts with other programs
 import time
 from tkinter import filedialog
@@ -114,7 +118,7 @@ class OSTask:
         raise TimeoutError("Window not found.")
 
 
-    def openLibreoffice(self):
+    def openLibreOffice(self):
         """Reactivates the correct, open LibreOffice file"""
 
         if self.file is None or not self.file.isAlive:            #if there isn't any file reference stored, or the window was closed...

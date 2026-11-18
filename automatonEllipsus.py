@@ -205,19 +205,19 @@ def exportPages(
     automationRunning = True                              #...and set that variable to True. Automation is now running
     stopEvent.clear()                                     #Then reset the Emergency Stop Sensor
 
-    try:                                                  #try the below...
-        if not thisOS.launchLibreOffice(file, updateStatus):   #open the LibreOffice file...
-            return                                             #...(careful to check for ESC)
-        if checkStop():                                        #...check if user pressed ESC again...
-            return                                             #...(and end function if they did)
-        if not thisOS.launchEllipsus(url, updateStatus):       #...then open to the Ellipsus document...
-            return                                             #...(still checking for ESC)
-        if checkStop():                                        #...and check if they pressed ESC again
-            return                                             #...(still end function if they did)
-        if not countdown(updateStatus):                        #Now start the countdown...
-            return                                             #...(And check for ESC again)
-        if not goToPage(startingPage, updateStatus):           #...And go to the page the user selected!
-            return                                             #...(Still check for ESC)
+    try:                                                      #try the below...
+        if not thisOS.launchLibreOffice(file, updateStatus, safeSleep):   #open the LibreOffice file...
+            return                                                        #...(careful to check for ESC)
+        if checkStop():                                                   #...check if user pressed ESC again...
+            return                                                        #...(and end function if they did)
+        if not thisOS.launchEllipsus(url, updateStatus, safeSleep):       #...then open to the Ellipsus document...
+            return                                                        #...(still checking for ESC)
+        if checkStop():                                                   #...and check if they pressed ESC again
+            return                                                        #...(still end function if they did)
+        if not countdown(updateStatus):                                   #Now start the countdown...
+            return                                                        #...(And check for ESC again)
+        if not goToPage(startingPage, updateStatus):     #libreoffice                 #...And go to the page the user selected!
+            return                                                        #...(Still check for ESC)
         
         currentPage = startingPage                             #Initialize the currentPage var and set it to the starting page
 
@@ -230,7 +230,7 @@ def exportPages(
             if not copyCurrentPage(updateStatus):              #...copy the text...
                 break                                          #...(Check for ESC)
 
-            pyautogui.hotkey("alt", "tab")                     #Use alt/tab to switch to Ellipsus.
+            thisOS.openEllipsus()
 
             if not safeSleep(DEFAULT_PAGE_DELAY):              #Pause to load...
                 break                                          #...(Check for ESC)
@@ -245,7 +245,7 @@ def exportPages(
                 updateStatus(f"TEST COMPLETE — page {currentPage} transferred.") #Alert user that Test concluded
                 break                                          #...(Check ESC)
 
-            pyautogui.hotkey("alt", "tab")                     #Switch back to LibreOffice.
+            thisOS.openLibreOffice()                           #Switch back to LibreOffice.
             if not safeSleep(DEFAULT_PAGE_DELAY):              #Pause to load...
                 break                                          #...(Check ESC)
             pyautogui.hotkey("ctrl", "pagedown")               #...and move to next page.
