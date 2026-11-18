@@ -117,16 +117,16 @@ class OSTask:
     def openLibreoffice(self):
         """Reactivates the correct, open LibreOffice file"""
 
-        if self.libreOfficeWindow is None or not self.libreOfficeWindow.isAlive:  #if there isn't any file reference stored, or 
-            raise Exception("LibreOffice window is unavailable.")                 #
-        if not self.libreOfficeWindow.activate(wait=True):                        #
-                raise Exception("Could not activate LibreOffice.")                #
+        if self.file is None or not self.file.isAlive:            #if there isn't any file reference stored, or the window was closed...
+            raise Exception("File is unavailable.")               #...raise an error
+        if not self.file.activate(wait=True):                     #Otherwise; activate the file window, and wait for it to activate. If that failed...
+                raise Exception("Could not activate document.")   #...raise a different error. Couldn't wake it up!
 
 
     def openEllipsus(self):
         """Reactivates the right, open Ellipsus tab"""
 
-        if self.ellipsusWindow is None or not self.ellipsusWindow.isAlive:        #
-            raise Exception("Ellipsus browser window is unavailable.")            #
-        if not self.ellipsusWindow.activate(wait=True):                           #
-            raise Exception("Could not activate Ellipsus.")                       #
+        if self.browser is None or not self.browser.isAlive:      #if there isn't a link stored, or the tab got closed...
+            raise Exception("The right tab is unavailable.")      #...tell the user we can't reach the tab
+        if not self.browser.activate(wait=True):                  #Otherwise; tell the program to activate the tab, and wait for it to do so. If that fails...
+            raise Exception("Could not activate Ellipsus.")       #...tell the user we couldn't wake it up!
